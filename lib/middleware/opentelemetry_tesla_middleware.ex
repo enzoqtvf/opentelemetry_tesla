@@ -2,12 +2,14 @@ defmodule Tesla.Middleware.OpenTelemetry do
   require OpenTelemetry.Tracer
   @behaviour Tesla.Middleware
 
-  def call(env, next, _options) do
+  def call(env, next, options \\ []) do
     span_name = get_span_name(env)
+    default_options = [inject_distributed_tracing_headers: true]
+    options = Keyword.merge(default_options, options)
 
     OpenTelemetry.Tracer.with_span span_name, %{kind: :client} do
       env
-      |> Tesla.put_headers(:otel_propagator_text_map.inject([]))
+      |> maybe_propagate_otel_headers(options[:inject_distributed_tracing_headers])
       |> Tesla.run(next)
       |> set_span_attributes()
       |> handle_result()
@@ -90,4 +92,9 @@ defmodule Tesla.Middleware.OpenTelemetry do
     |> Atom.to_string()
     |> String.upcase()
   end
+
+  defp maybe_propagate_otel_headers(env, true),
+    do: Tesla.put_headers(env, :otel_propagator_text_map.inject([]))
+
+  defp maybe_propagate_otel_headers(env, _), do: env
 end

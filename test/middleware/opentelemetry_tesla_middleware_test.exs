@@ -312,11 +312,29 @@ defmodule Tesla.Middleware.OpenTelemetryTest do
             }} =
              Tesla.Middleware.OpenTelemetry.call(
                %Tesla.Env{url: ""},
-               [],
-               "http://example.com"
+               []
              )
 
     assert is_binary(traceparent)
+  end
+
+  test "Do not injects distributed tracing headers if specified in options" do
+    OpentelemetryTelemetry.start_telemetry_span(
+      "tracer_id",
+      "my_label",
+      %{},
+      %{kind: :client}
+    )
+
+    assert {:ok,
+            %Tesla.Env{
+              headers: []
+            }} =
+             Tesla.Middleware.OpenTelemetry.call(
+               %Tesla.Env{url: ""},
+               [],
+               inject_distributed_tracing_headers: false
+             )
   end
 
   defp endpoint_url(port), do: "http://localhost:#{port}/"
